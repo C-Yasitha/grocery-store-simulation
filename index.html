@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grocery Store Queuing Simulation</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .layout {
+      display: flex;
+      height: 100vh;
+    }
+
+    .model-frame {
+      flex: 1;
+      position: relative;
+    }
+
+    .model-frame iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .sidebar {
+      width: 400px;
+      background: #16213e;
+      border-left: 2px solid #0f3460;
+      padding: 16px;
+      overflow-y: auto;
+      flex-shrink: 0;
+      transition: width 0.3s, padding 0.3s;
+    }
+
+    .sidebar.collapsed {
+      width: 40px;
+      padding: 16px 8px;
+      overflow: hidden;
+    }
+
+    .sidebar.collapsed .sidebar-content { display: none; }
+
+    .toggle-btn {
+      background: #0f3460;
+      color: #e0e0e0;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 14px;
+      width: 100%;
+      margin-bottom: 12px;
+    }
+    .toggle-btn:hover { background: #1a4a7a; }
+
+    h2 {
+      font-size: 13px;
+      color: #16213e;
+      background: #e94560;
+      padding: 5px 10px;
+      border-radius: 4px;
+      margin: 12px 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    h3 {
+      font-size: 12px;
+      color: #e94560;
+      margin-bottom: 6px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #0f3460;
+    }
+
+    .control-group {
+      margin-bottom: 8px;
+    }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #a0a0c0;
+      margin-bottom: 2px;
+    }
+
+    .control-group label .value {
+      color: #e94560;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 5px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #0f3460;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #e94560;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: #e94560;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+
+    .shift-section {
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 6px;
+      background: rgba(15, 52, 96, 0.3);
+    }
+
+    .btn-copy {
+      width: 100%;
+      padding: 10px;
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn-copy:hover { background: #c73a52; }
+
+    .status-msg {
+      font-size: 11px;
+      color: #4caf50;
+      margin-top: 4px;
+      min-height: 14px;
+    }
+
+    .cmd-preview {
+      background: #0a0a1a;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 10px;
+      color: #7fdbca;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin-top: 6px;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    .info-note {
+      font-size: 10px;
+      color: #777;
+      font-style: italic;
+      margin-top: 4px;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #1a1a2e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    .loading-overlay.hidden { display: none; }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #0f3460;
+      border-top: 4px solid #e94560;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .section-divider {
+      border-top: 1px solid #0f3460;
+      margin: 10px 0;
+    }
+
+    .shift-time-badge {
+      display: inline-block;
+      background: #0f3460;
+      color: #7fdbca;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      margin-left: 6px;
+      font-weight: normal;
+    }
+
+    .counter-summary {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+      margin-bottom: 4px;
+    }
+
+    .counter-chip {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .counter-chip.cash { background: #2e7d32; }
+    .counter-chip.card { background: #e65100; }
+    .counter-chip.express { background: #1565c0; }
+    .counter-chip.self-checkout { background: #8e24aa; }
+
+    .legend {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 12px;
+      margin-bottom: 4px;
+    }
+
+    .legend-title {
+      grid-column: 1 / -1;
+      font-size: 11px;
+      color: #a0a0c0;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: #c0c0d0;
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── CSV Export ── */
+    .csv-controls {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .btn-record {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      color: white;
+    }
+
+    .btn-record.start { background: #2e7d32; }
+    .btn-record.start:hover { background: #1b5e20; }
+    .btn-record.stop { background: #c62828; }
+    .btn-record.stop:hover { background: #b71c1c; }
+    .btn-record.download { background: #1565c0; }
+    .btn-record.download:hover { background: #0d47a1; }
+    .btn-record:disabled { background: #444; cursor: not-allowed; opacity: 0.5; }
+
+    .csv-status {
+      font-size: 11px;
+      padding: 6px 8px;
+      background: rgba(15, 52, 96, 0.3);
+      border-radius: 4px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .csv-status .label { color: #a0a0c0; }
+    .csv-status .val { color: #7fdbca; font-weight: bold; }
+
+    .recording-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #c62828;
+      margin-right: 4px;
+      animation: pulse-dot 1s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- NLW Model (outputs only: view, buttons, monitors, plot) -->
+  <div class="model-frame">
+    <div id="loading-overlay" class="loading-overlay">
+      <div class="spinner"></div>
+      <p>Loading NetLogo Web model...</p>
+    </div>
+    <iframe id="nlw-iframe" src="model/grocery_v1.3.html"></iframe>
+  </div>
+
+  <!-- Control Sidebar -->
+  <div id="sidebar" class="sidebar">
+    <button class="toggle-btn" onclick="toggleSidebar()">&#9664; Controls</button>
+
+    <div class="sidebar-content">
+
+      <!-- ─── Color Legend ─── -->
+      <h2>Color Legend</h2>
+      <div class="legend">
+        <div class="legend-title">Counters (Cashiers)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#00c000;"></span> Cash</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ff8c00;"></span> Card</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#0080ff;"></span> Express</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ff00ff;"></span> Self-checkout</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ff0000;"></span> Busy (red dot below)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#000;border:1px solid #555;"></span> Inactive (shift off)</div>
+        <div class="legend-title">Customers</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ffffff;"></span> Cash customer</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ffff00;"></span> Card customer</div>
+      </div>
+
+      <!-- ─── Simulation Timing ─── -->
+      <h2>Simulation Timing</h2>
+
+      <div class="control-group">
+        <label>Operating Hours <span class="value" id="val-operating-hours">16</span></label>
+        <input type="range" id="operating-hours" min="1" max="24" step="1" value="16"
+               oninput="updateVal(this); buildShiftControls(); updateCmdPreview();">
+      </div>
+
+      <div class="control-group">
+        <label>Number of Rounds <span class="value" id="val-num-rounds">1</span></label>
+        <input type="range" id="num-rounds" min="1" max="30" step="1" value="1"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+
+      <div class="control-group">
+        <label>Number of Shifts <span class="value" id="val-num-shifts">1</span></label>
+        <input type="range" id="num-shifts" min="1" max="4" step="1" value="1"
+               oninput="updateVal(this); buildShiftControls(); updateCmdPreview();">
+      </div>
+
+      <!-- ─── Per-Shift Configuration ─── -->
+      <h2>Per-Shift Configuration</h2>
+      <div id="shift-controls-container">
+        <!-- Dynamically generated -->
+      </div>
+
+      <!-- ─── Global Configuration ─── -->
+      <h2>Global Configuration</h2>
+
+      <div class="control-group">
+        <label>Prob Cash Payment <span class="value" id="val-prob-cash">0.5</span></label>
+        <input type="range" id="prob-cash" min="0" max="1" step="0.1" value="0.5"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+
+      <div class="control-group">
+        <label>Service Variability <span class="value" id="val-service-variability">0.2</span></label>
+        <input type="range" id="service-variability" min="0" max="1" step="0.1" value="0.2"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="control-group">
+        <label>Cash Payment Mean (s) <span class="value" id="val-cash-payment-mean">11</span></label>
+        <input type="range" id="cash-payment-mean" min="5" max="30" step="1" value="11"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+
+      <div class="control-group">
+        <label>Cash Payment SD (s) <span class="value" id="val-cash-payment-sd">3</span></label>
+        <input type="range" id="cash-payment-sd" min="1" max="10" step="0.5" value="3"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+
+      <div class="control-group">
+        <label>Card Payment Mean (s) <span class="value" id="val-card-payment-mean">6</span></label>
+        <input type="range" id="card-payment-mean" min="2" max="15" step="1" value="6"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+
+      <div class="control-group">
+        <label>Card Payment SD (s) <span class="value" id="val-card-payment-sd">2</span></label>
+        <input type="range" id="card-payment-sd" min="0.5" max="5" step="0.5" value="2"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="control-group">
+        <label>Self-Checkout Scan Time (s/item) <span class="value" id="val-self-checkout-scan-time">5</span></label>
+        <input type="range" id="self-checkout-scan-time" min="1" max="10" step="1" value="5"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+
+      <div class="control-group">
+        <label>Self-Checkout Payment Time (s) <span class="value" id="val-self-checkout-payment-time">8</span></label>
+        <input type="range" id="self-checkout-payment-time" min="2" max="20" step="1" value="8"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+
+      <!-- ─── Peak Periods ─── -->
+      <h2>Peak Periods</h2>
+
+      <h3>Peak 1</h3>
+      <div class="control-group">
+        <label>Start (hour) <span class="value" id="val-peak1-start-hour">0</span></label>
+        <input type="range" id="peak1-start-hour" min="0" max="24" step="0.5" value="0"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+      <div class="control-group">
+        <label>End (hour) <span class="value" id="val-peak1-end-hour">0</span></label>
+        <input type="range" id="peak1-end-hour" min="0" max="24" step="0.5" value="0"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+      <div class="control-group">
+        <label>Multiplier <span class="value" id="val-peak1-multiplier">0</span></label>
+        <input type="range" id="peak1-multiplier" min="0" max="5" step="0.5" value="0"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+
+      <h3>Peak 2</h3>
+      <div class="control-group">
+        <label>Start (hour) <span class="value" id="val-peak2-start-hour">0</span></label>
+        <input type="range" id="peak2-start-hour" min="0" max="24" step="0.5" value="0"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+      <div class="control-group">
+        <label>End (hour) <span class="value" id="val-peak2-end-hour">0</span></label>
+        <input type="range" id="peak2-end-hour" min="0" max="24" step="0.5" value="0"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+      <div class="control-group">
+        <label>Multiplier <span class="value" id="val-peak2-multiplier">0</span></label>
+        <input type="range" id="peak2-multiplier" min="0" max="5" step="0.5" value="0"
+               oninput="updateVal(this); updateCmdPreview();">
+      </div>
+
+      <!-- ─── CSV Export ─── -->
+      <h2>CSV Export</h2>
+
+      <div class="control-group">
+        <label>Sample every N sim-minutes <span class="value" id="val-csv-interval">1</span></label>
+        <input type="range" id="csv-interval" min="1" max="60" step="1" value="1"
+               oninput="updateVal(this);">
+      </div>
+
+      <div class="csv-controls">
+        <button id="btn-csv-start" class="btn-record start" onclick="startRecording()">Start Recording</button>
+        <button id="btn-csv-stop" class="btn-record stop" onclick="stopRecording()" disabled>Stop</button>
+      </div>
+
+      <div class="csv-status">
+        <span><span class="label">Status:</span> <span class="val" id="csv-rec-status">Idle</span></span>
+        <span><span class="label">Rows:</span> <span class="val" id="csv-row-count">0</span></span>
+      </div>
+      <div class="csv-status">
+        <span><span class="label">Sim time:</span> <span class="val" id="csv-sim-time">0</span></span>
+        <span><span class="label">Last sample:</span> <span class="val" id="csv-last-sample">—</span></span>
+      </div>
+
+      <button id="btn-csv-download" class="btn-record download" onclick="downloadCSV()" disabled>Download CSV</button>
+      <p class="info-note" id="csv-error-msg" style="color:#e94560;"></p>
+
+      <!-- ─── Command Output ─── -->
+      <h2>Command</h2>
+      <div id="cmd-preview" class="cmd-preview"></div>
+
+      <button class="btn-copy" onclick="copyCommand()">Copy Command to Clipboard</button>
+      <div id="status-msg" class="status-msg"></div>
+
+      <p class="info-note">
+        <strong>How to use:</strong><br>
+        1. Configure all parameters above<br>
+        2. Click <strong>Copy Command</strong><br>
+        3. Click the model's <strong>command center</strong> (bottom of model)<br>
+        4. Paste the command and press Enter<br>
+        5. Click <strong>Go</strong> in the model
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Helper: update value display ──
+  function updateVal(input) {
+    const id = input.id;
+    const valEl = document.getElementById('val-' + id);
+    if (valEl) valEl.textContent = input.value;
+  }
+
+  // ── Sidebar Toggle ──
+  function toggleSidebar() {
+    const sb = document.getElementById('sidebar');
+    sb.classList.toggle('collapsed');
+    const btn = sb.querySelector('.toggle-btn');
+    btn.innerHTML = sb.classList.contains('collapsed') ? '&#9654;' : '&#9664; Controls';
+  }
+
+  // ── Format hours as H:MM ──
+  function formatHour(h) {
+    const hrs = Math.floor(h);
+    const mins = Math.round((h - hrs) * 60);
+    return hrs + ':' + String(mins).padStart(2, '0');
+  }
+
+  // ── Build Per-Shift Controls ──
+  function buildShiftControls() {
+    const numShifts = parseInt(document.getElementById('num-shifts').value);
+    const opHours = parseInt(document.getElementById('operating-hours').value);
+    const hoursPerShift = opHours / numShifts;
+    const container = document.getElementById('shift-controls-container');
+    container.innerHTML = '';
+
+    for (let i = 0; i < numShifts; i++) {
+      const defCash = 3, defCard = 3, defExpress = 1, defSelf = 2;
+      const defArrival = 60, defService = 300;
+
+      const startH = formatHour(i * hoursPerShift);
+      const endH = formatHour((i + 1) * hoursPerShift);
+
+      const section = document.createElement('div');
+      section.className = 'shift-section';
+      section.innerHTML = `
+        <h3>Shift ${i + 1} <span class="shift-time-badge">${startH} - ${endH} (${hoursPerShift}h)</span></h3>
+        <div class="counter-summary" id="counter-summary-${i}">
+          <span class="counter-chip cash">${defCash} Cash</span>
+          <span class="counter-chip card">${defCard} Card</span>
+          <span class="counter-chip express">${defExpress} Express</span>
+          <span class="counter-chip self-checkout">${defSelf} Self</span>
+        </div>
+        <div class="control-group">
+          <label>Cash Counters <span class="value" id="val-sh-cash-${i}">${defCash}</span></label>
+          <input type="range" id="sh-cash-${i}" min="0" max="10" step="1" value="${defCash}"
+                 oninput="updateVal(this); updateCounterSummary(${i}); updateCmdPreview();">
+        </div>
+        <div class="control-group">
+          <label>Card Counters <span class="value" id="val-sh-card-${i}">${defCard}</span></label>
+          <input type="range" id="sh-card-${i}" min="0" max="10" step="1" value="${defCard}"
+                 oninput="updateVal(this); updateCounterSummary(${i}); updateCmdPreview();">
+        </div>
+        <div class="control-group">
+          <label>Express Counters <span class="value" id="val-sh-express-${i}">${defExpress}</span></label>
+          <input type="range" id="sh-express-${i}" min="0" max="10" step="1" value="${defExpress}"
+                 oninput="updateVal(this); updateCounterSummary(${i}); updateCmdPreview();">
+        </div>
+        <div class="control-group">
+          <label>Self-Checkout Counters <span class="value" id="val-sh-self-${i}">${defSelf}</span></label>
+          <input type="range" id="sh-self-${i}" min="0" max="10" step="1" value="${defSelf}"
+                 oninput="updateVal(this); updateCounterSummary(${i}); updateCmdPreview();">
+        </div>
+        <div class="control-group">
+          <label>Arrival Rate (cust/hr) <span class="value" id="val-sh-arrival-${i}">${defArrival}</span></label>
+          <input type="range" id="sh-arrival-${i}" min="5" max="120" step="1" value="${defArrival}"
+                 oninput="updateVal(this); updateCmdPreview();">
+        </div>
+        <div class="control-group">
+          <label>Avg Service Time (s) <span class="value" id="val-sh-service-${i}">${defService}</span></label>
+          <input type="range" id="sh-service-${i}" min="60" max="600" step="5" value="${defService}"
+                 oninput="updateVal(this); updateCmdPreview();">
+        </div>
+      `;
+      container.appendChild(section);
+    }
+    updateCmdPreview();
+  }
+
+  // ── Update counter summary chips for a shift ──
+  function updateCounterSummary(shiftIdx) {
+    const cash = sliderVal(`sh-cash-${shiftIdx}`);
+    const card = sliderVal(`sh-card-${shiftIdx}`);
+    const express = sliderVal(`sh-express-${shiftIdx}`);
+    const self = sliderVal(`sh-self-${shiftIdx}`);
+    const el = document.getElementById(`counter-summary-${shiftIdx}`);
+    if (el) {
+      el.innerHTML = `
+        <span class="counter-chip cash">${cash} Cash</span>
+        <span class="counter-chip card">${card} Card</span>
+        <span class="counter-chip express">${express} Express</span>
+        <span class="counter-chip self-checkout">${self} Self</span>
+      `;
+    }
+  }
+
+  // ── Read a slider value ──
+  function sliderVal(id) {
+    const el = document.getElementById(id);
+    return el ? parseFloat(el.value) : 0;
+  }
+
+  // ── Generate single-line NetLogo command ──
+  function generateCommand() {
+    const numShifts = parseInt(document.getElementById('num-shifts').value);
+    const parts = [];
+
+    // Global scalars
+    parts.push(`set num-shifts ${numShifts}`);
+    parts.push(`set operating-hours ${sliderVal('operating-hours')}`);
+    parts.push(`set num-rounds ${sliderVal('num-rounds')}`);
+    parts.push(`set prob-cash ${sliderVal('prob-cash')}`);
+    parts.push(`set service-variability ${sliderVal('service-variability')}`);
+    parts.push(`set cash-payment-mean ${sliderVal('cash-payment-mean')}`);
+    parts.push(`set cash-payment-sd ${sliderVal('cash-payment-sd')}`);
+    parts.push(`set card-payment-mean ${sliderVal('card-payment-mean')}`);
+    parts.push(`set card-payment-sd ${sliderVal('card-payment-sd')}`);
+    parts.push(`set self-checkout-scan-time ${sliderVal('self-checkout-scan-time')}`);
+    parts.push(`set self-checkout-payment-time ${sliderVal('self-checkout-payment-time')}`);
+    parts.push(`set peak1-start-hour ${sliderVal('peak1-start-hour')}`);
+    parts.push(`set peak1-end-hour ${sliderVal('peak1-end-hour')}`);
+    parts.push(`set peak1-multiplier ${sliderVal('peak1-multiplier')}`);
+    parts.push(`set peak2-start-hour ${sliderVal('peak2-start-hour')}`);
+    parts.push(`set peak2-end-hour ${sliderVal('peak2-end-hour')}`);
+    parts.push(`set peak2-multiplier ${sliderVal('peak2-multiplier')}`);
+
+    // Per-shift lists
+    const cashList = [], cardList = [], expressList = [], selfList = [];
+    const arrivalList = [], serviceList = [];
+
+    for (let i = 0; i < numShifts; i++) {
+      cashList.push(sliderVal(`sh-cash-${i}`));
+      cardList.push(sliderVal(`sh-card-${i}`));
+      expressList.push(sliderVal(`sh-express-${i}`));
+      selfList.push(sliderVal(`sh-self-${i}`));
+      arrivalList.push(sliderVal(`sh-arrival-${i}`));
+      serviceList.push(sliderVal(`sh-service-${i}`));
+    }
+
+    // Use first shift values as the base counters / rates
+    parts.push(`set num-cash-counters ${cashList[0]}`);
+    parts.push(`set num-card-counters ${cardList[0]}`);
+    parts.push(`set num-express-counters ${expressList[0]}`);
+    parts.push(`set num-self-checkout-counters ${selfList[0]}`);
+    parts.push(`set arrival-rate ${arrivalList[0]}`);
+    parts.push(`set avg-service-time ${serviceList[0]}`);
+
+    // Shift lists
+    parts.push(`set shift-num-cash [${cashList.join(' ')}]`);
+    parts.push(`set shift-num-card [${cardList.join(' ')}]`);
+    parts.push(`set shift-num-express [${expressList.join(' ')}]`);
+    parts.push(`set shift-num-self-checkout [${selfList.join(' ')}]`);
+    parts.push(`set shift-arrival-rates [${arrivalList.join(' ')}]`);
+    parts.push(`set shift-avg-service-times [${serviceList.join(' ')}]`);
+
+    // Run setup
+    parts.push('setup');
+
+    return parts.join(' ');
+  }
+
+  // ── Update command preview ──
+  function updateCmdPreview() {
+    document.getElementById('cmd-preview').textContent = generateCommand();
+  }
+
+  // ── Copy to clipboard ──
+  function copyCommand() {
+    const cmd = generateCommand();
+    const statusEl = document.getElementById('status-msg');
+
+    navigator.clipboard.writeText(cmd).then(() => {
+      statusEl.textContent = 'Copied! Paste in the model command center and press Enter.';
+      statusEl.className = 'status-msg';
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = cmd;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      statusEl.textContent = 'Copied! Paste in the model command center and press Enter.';
+      statusEl.className = 'status-msg';
+    });
+  }
+
+  // ── Init ──
+  buildShiftControls();
+
+  // Handle iframe load
+  const iframe = document.getElementById('nlw-iframe');
+  iframe.addEventListener('load', () => {
+    setTimeout(() => {
+      document.getElementById('loading-overlay').classList.add('hidden');
+    }, 1500);
+  });
+
+  // Fallback: hide loading after 10s regardless
+  setTimeout(() => {
+    document.getElementById('loading-overlay').classList.add('hidden');
+  }, 10000);
+
+  // ═══════════════════════════════════════════
+  // CSV EXPORT
+  // ═══════════════════════════════════════════
+
+  const CSV_HEADERS = [
+    'sim_time_min',
+    'current_shift',
+    'avg_wait_time_s',
+    'p95_wait_time_s',
+    'avg_queue_length',
+    'current_queue_length',
+    'num_served',
+    'throughput_per_min',
+    'utilization',
+    'self_checkout_queue'
+  ];
+
+  // Monitor labels in the NLW iframe → CSV column mapping
+  const MONITOR_MAP = {
+    'Sim time (minutes)':        'sim_time_min',
+    'Current Shift':             'current_shift',
+    'Avg wait time (seconds)':   'avg_wait_time_s',
+    'P95 wait time (seconds)':   'p95_wait_time_s',
+    'Avg queue length':          'avg_queue_length',
+    'Current queue length':      'current_queue_length',
+    'Throughput (# served)':     'num_served',
+    'Utilization (fraction busy)':'utilization',
+    'Self-checkout queue':       'self_checkout_queue'
+  };
+
+  let csvRows = [];
+  let csvTimerId = null;
+  let csvLastRecordedMinute = -1;
+
+  /**
+   * Read all monitor values from the NLW iframe DOM.
+   * Monitors render as .netlogo-monitor with .netlogo-label and .netlogo-value children.
+   */
+  function readMonitorValues() {
+    const nlwIframe = document.getElementById('nlw-iframe');
+    let iframeDoc;
+    try {
+      iframeDoc = nlwIframe.contentDocument || nlwIframe.contentWindow.document;
+    } catch (e) {
+      throw new Error('Cannot access iframe. Serve via a local HTTP server (e.g. python -m http.server).');
+    }
+
+    const monitors = iframeDoc.querySelectorAll('.netlogo-monitor');
+    const values = {};
+
+    monitors.forEach(mon => {
+      const labelEl = mon.querySelector('.netlogo-label');
+      const valueEl = mon.querySelector('.netlogo-value');
+      if (!labelEl || !valueEl) return;
+
+      const label = labelEl.textContent.trim();
+      const csvCol = MONITOR_MAP[label];
+      if (csvCol) {
+        const raw = valueEl.textContent.trim();
+        values[csvCol] = raw === '' ? '0' : raw;
+      }
+    });
+
+    // Compute throughput (num_served / sim_time_min)
+    const simTime = parseFloat(values['sim_time_min']) || 0;
+    const numServed = parseFloat(values['num_served']) || 0;
+    values['throughput_per_min'] = simTime > 0 ? (numServed / simTime).toFixed(4) : '0';
+
+    return values;
+  }
+
+  function pollAndRecord() {
+    const errorEl = document.getElementById('csv-error-msg');
+    try {
+      const values = readMonitorValues();
+      const simTime = parseFloat(values['sim_time_min']) || 0;
+      const interval = parseInt(document.getElementById('csv-interval').value) || 1;
+
+      // Update live display
+      document.getElementById('csv-sim-time').textContent = simTime.toFixed(1);
+
+      // Only record if sim time crossed the next interval boundary
+      const currentBucket = Math.floor(simTime / interval);
+      if (currentBucket > csvLastRecordedMinute && simTime > 0) {
+        csvLastRecordedMinute = currentBucket;
+
+        const row = CSV_HEADERS.map(h => values[h] || '0');
+        csvRows.push(row);
+
+        document.getElementById('csv-row-count').textContent = csvRows.length;
+        document.getElementById('csv-last-sample').textContent = simTime.toFixed(1) + ' min';
+      }
+
+      errorEl.textContent = '';
+    } catch (e) {
+      errorEl.textContent = e.message;
+    }
+  }
+
+  function startRecording() {
+    csvRows = [];
+    csvLastRecordedMinute = -1;
+
+    document.getElementById('csv-row-count').textContent = '0';
+    document.getElementById('csv-last-sample').textContent = '—';
+    document.getElementById('csv-rec-status').innerHTML =
+      '<span class="recording-indicator"></span>Recording';
+    document.getElementById('btn-csv-start').disabled = true;
+    document.getElementById('btn-csv-stop').disabled = false;
+    document.getElementById('btn-csv-download').disabled = true;
+    document.getElementById('csv-error-msg').textContent = '';
+
+    // Poll every 500ms (real-time) to catch sim-time changes
+    csvTimerId = setInterval(pollAndRecord, 500);
+  }
+
+  function stopRecording() {
+    if (csvTimerId) {
+      clearInterval(csvTimerId);
+      csvTimerId = null;
+    }
+
+    document.getElementById('csv-rec-status').textContent =
+      'Stopped (' + csvRows.length + ' rows)';
+    document.getElementById('btn-csv-start').disabled = false;
+    document.getElementById('btn-csv-stop').disabled = true;
+    document.getElementById('btn-csv-download').disabled = csvRows.length === 0;
+  }
+
+  function downloadCSV() {
+    if (csvRows.length === 0) return;
+
+    const lines = [CSV_HEADERS.join(',')];
+    csvRows.forEach(row => lines.push(row.join(',')));
+    const csvContent = lines.join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const now = new Date();
+    const ts = now.toISOString().slice(0, 19).replace(/[T:]/g, '-');
+    a.download = `grocery_sim_${ts}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+</script>
+
+</body>
+</html>
